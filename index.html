@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aegis HR - Strategic Workforce Analytics Dashboard</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- FontAwesome for robust dynamic icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            slate: {
+              950: '#0b0f19',
+            }
+          },
+          fontSize: {
+            'xxs': '0.65rem',
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom CSS for theme & animations -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="min-h-screen text-slate-100 flex flex-col md:flex-row">
+
+  <!-- Sidebar -->
+  <aside class="w-full md:w-64 bg-slate-950/80 border-b md:border-b-0 md:border-r border-slate-800/80 flex flex-col flex-shrink-0 z-10 glass-panel">
+    <!-- Brand Title -->
+    <div class="p-6 border-b border-slate-800/80 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-500 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <i class="fa-solid fa-users-gear text-white text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-xl font-bold tracking-tight text-white font-title">AEGIS HR</h1>
+        <span class="text-xxs text-indigo-400 font-bold uppercase tracking-wider">Workforce Planning</span>
+      </div>
+    </div>
+
+    <!-- Navigation Menu -->
+    <nav class="flex-1 p-4 space-y-2">
+      <button data-tab="overview" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-indigo-500/50 bg-indigo-600/25 text-indigo-400 font-medium text-sm transition-all">
+        <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+        <span>Nhìn lại & Hiện tại</span>
+      </button>
+      <button data-tab="analytics" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 font-medium text-sm transition-all">
+        <i class="fa-solid fa-magnifying-glass-chart w-5 text-center"></i>
+        <span>Phân tích Gốc rễ & Rủi ro</span>
+      </button>
+      <button data-tab="simulator" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 font-medium text-sm transition-all">
+        <i class="fa-solid fa-sliders w-5 text-center"></i>
+        <span>Mô phỏng & Dự báo SWP</span>
+      </button>
+      <button data-tab="explorer" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-transparent text-slate-400 hover:bg-slate-900/60 hover:text-slate-200 font-medium text-sm transition-all">
+        <i class="fa-solid fa-database w-5 text-center"></i>
+        <span>Cơ sở dữ liệu nhân sự</span>
+      </button>
+    </nav>
+
+    <!-- Bottom Actions / App Status -->
+    <div class="p-4 border-t border-slate-800/80 space-y-2 bg-slate-950/40">
+      <button id="btn-regenerate" class="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-850 text-slate-300 rounded-lg text-xs font-semibold border border-slate-800 transition-colors">
+        <i class="fa-solid fa-rotate"></i>
+        <span>Tạo lại dữ liệu mẫu</span>
+      </button>
+      <div class="flex gap-2">
+        <button id="btn-export-csv" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-300 rounded-lg text-xs font-semibold border border-indigo-900 transition-colors">
+          <i class="fa-solid fa-file-export"></i>
+          <span>Xuất CSV</span>
+        </button>
+        <button id="btn-import-csv" class="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 rounded-lg text-xs font-semibold border border-emerald-900 transition-colors">
+          <i class="fa-solid fa-file-import"></i>
+          <span>Nhập CSV</span>
+        </button>
+      </div>
+      <input type="file" id="csv-file-input" accept=".csv" class="hidden">
+      <div class="text-center pt-2 text-slate-600 text-[10px]">
+        Aegis Analytics Engine v2.0
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content Area -->
+  <main class="flex-1 flex flex-col min-w-0 overflow-y-auto">
+    
+    <!-- Top Filter Bar -->
+    <header class="p-6 bg-slate-950/40 border-b border-slate-900 flex flex-col lg:flex-row lg:items-center justify-between gap-4 glass-panel z-0">
+      <div>
+        <h2 class="text-2xl font-bold tracking-tight text-white font-title">Strategic Workforce Analytics</h2>
+        <p class="text-xs text-slate-400 mt-1">Hệ thống phân tích, chẩn đoán hao hụt và hoạch định kịch bản nhân sự chiến lược.</p>
+      </div>
+      
+      <!-- Interactive Global Filters -->
+      <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-2 rounded-xl border border-slate-800/80">
+        <div class="flex items-center gap-1.5 px-2">
+          <i class="fa-solid fa-filter text-indigo-400 text-xs"></i>
+          <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Bộ lọc</span>
+        </div>
+        
+        <div>
+          <select id="filter-dept" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-slate-200">
+            <option value="all">Tất cả Phòng Ban</option>
+            <option value="Sales">Sales</option>
+            <option value="R&D">R&D</option>
+            <option value="Tech/AI">Tech/AI</option>
+            <option value="HR">HR</option>
+            <option value="Customer Service">Customer Service</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="filter-perf" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-slate-200">
+            <option value="all">Tất cả Hiệu Suất</option>
+            <option value="Excellent">Excellent</option>
+            <option value="Good">Good</option>
+            <option value="Average">Average</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+
+        <div>
+          <select id="filter-skill" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-950 border border-slate-800 text-slate-200">
+            <option value="all">Tất cả Kỹ Năng</option>
+            <option value="AI/Data">AI/Data Skills</option>
+            <option value="Digital Literacy">Digital Literacy</option>
+            <option value="Traditional Skills">Traditional Skills</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <!-- Content Pages Container -->
+    <div class="p-6 space-y-6 flex-1">
+      
+      <!-- KPI Cards Grid (Common across views, updates based on filter/dataset) -->
+      <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+        <!-- KPI 1: Headcount -->
+        <div class="glass-card p-5 rounded-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10 text-indigo-400 text-5xl">
+            <i class="fa-solid fa-user-group"></i>
+          </div>
+          <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Tổng nhân sự hiện tại</span>
+          <span id="kpi-total-headcount" class="text-3xl font-extrabold text-white text-glow-indigo mt-2 block">0</span>
+          <span class="text-slate-500 text-xxs mt-2 block">Nhân viên đang làm việc (Active)</span>
+        </div>
+
+        <!-- KPI 2: Avg Age -->
+        <div class="glass-card p-5 rounded-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10 text-indigo-400 text-5xl">
+            <i class="fa-solid fa-cake-candles"></i>
+          </div>
+          <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Tuổi trung bình</span>
+          <span id="kpi-avg-age" class="text-3xl font-extrabold text-white mt-2 block">0</span>
+          <div id="kpi-age-warning" class="mt-2 text-xxs"></div>
+        </div>
+
+        <!-- KPI 3: Avg Tenure -->
+        <div class="glass-card p-5 rounded-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10 text-emerald-400 text-5xl">
+            <i class="fa-solid fa-business-time"></i>
+          </div>
+          <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Thâm niên trung bình</span>
+          <span id="kpi-avg-tenure" class="text-3xl font-extrabold text-white mt-2 block">0</span>
+          <span class="text-slate-500 text-xxs mt-2 block">Số tháng làm việc tại công ty</span>
+        </div>
+
+        <!-- KPI 4: Turnover Rate -->
+        <div class="glass-card p-5 rounded-2xl relative overflow-hidden">
+          <div class="absolute top-0 right-0 p-4 opacity-10 text-rose-400 text-5xl">
+            <i class="fa-solid fa-door-open"></i>
+          </div>
+          <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Tỷ lệ nghỉ việc chung</span>
+          <span id="kpi-turnover-rate" class="text-3xl font-extrabold text-white mt-2 block">0%</span>
+          <div id="kpi-turnover-warning" class="mt-2 text-xxs"></div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- TAB 1: NHÌN LẠI QUÁ KHỨ & HIỆN TẠI         -->
+      <!-- ========================================== -->
+      <div id="tab-overview" class="tab-content space-y-6">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Age Pyramid -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col h-[400px]">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-base font-bold text-white font-title flex items-center gap-2">
+                  <i class="fa-solid fa-chart-bar text-indigo-400"></i> Cơ cấu độ tuổi nhân sự
+                </h3>
+                <p class="text-xxs text-slate-400">Tháp tuổi giúp phát hiện xu hướng già hóa lao động</p>
+              </div>
+            </div>
+            <div class="flex-1 relative">
+              <canvas id="chart-age-pyramid"></canvas>
+            </div>
+          </div>
+
+          <!-- Tenure by Dept -->
+          <div class="glass-card p-6 rounded-2xl flex flex-col h-[400px]">
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h3 class="text-base font-bold text-white font-title flex items-center gap-2">
+                  <i class="fa-solid fa-chart-column text-emerald-400"></i> Cơ cấu thâm niên trung bình
+                </h3>
+                <p class="text-xxs text-slate-400">Thâm niên trung bình (tháng) phân bổ theo phòng ban</p>
+              </div>
+            </div>
+            <div class="flex-1 relative">
+              <canvas id="chart-tenure-dept"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: PHÂN TÍCH GỐC RỄ & RỦI RO CHIẾN LƯỢC-->
+      <!-- ========================================== -->
+      <div id="tab-analytics" class="tab-content hidden space-y-6">
+        
+        <!-- Section 1: Attrition Diagnostics -->
+        <div class="glass-card p-6 rounded-2xl space-y-6">
+          <div class="border-b border-slate-800/80 pb-4">
+            <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+              <i class="fa-solid fa-user-minus text-rose-500"></i> Phân loại Hao hụt Nhân sự (Attrition Analytics)
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Phân tích chuyên sâu về tính chất hao hụt để đánh giá sức khỏe tổ chức.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left: Stats & Alerts -->
+            <div class="lg:col-span-2 space-y-6">
+              
+              <!-- Dysfunctional vs Functional Metric Cards -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <!-- Dysfunctional Attrition Card -->
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-3">
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider">Hao hụt có hại (Dysfunctional)</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-500/10 text-rose-400 border border-rose-500/25">Mục tiêu: <10%</span>
+                  </div>
+                  <div id="dysfunctional-turnover-val" class="text-4xl font-extrabold text-rose-500">0%</div>
+                  <p class="text-[11px] text-slate-400">Tỷ lệ nhân tài cốt lõi (Tech/AI hoặc hiệu suất Excellent) rời bỏ công ty.</p>
+                </div>
+
+                <!-- Functional Attrition Card -->
+                <div class="bg-slate-900/60 border border-slate-800 p-5 rounded-xl space-y-3">
+                  <div class="flex justify-between items-center">
+                    <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider">Hao hụt có lợi (Functional)</span>
+                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/25">Lành mạnh</span>
+                  </div>
+                  <div id="functional-turnover-val" class="text-4xl font-extrabold text-emerald-400">0%</div>
+                  <p class="text-[11px] text-slate-400">Tỷ lệ nhân sự hiệu suất kém (Poor) nghỉ việc giúp thanh lọc tổ chức.</p>
+                </div>
+              </div>
+
+              <!-- Alerts box based on rates -->
+              <div id="dysfunctional-alert-box" class="space-y-3"></div>
+              <div id="functional-alert-box" class="space-y-3"></div>
+
+            </div>
+
+            <!-- Right: Attrition Chart -->
+            <div class="bg-slate-900/40 border border-slate-850 p-5 rounded-xl flex flex-col justify-between h-[300px] lg:h-auto">
+              <span class="text-slate-300 text-xs font-bold uppercase tracking-wider block mb-2 text-center">Tỷ trọng Cơ cấu Hao hụt</span>
+              <div class="flex-1 relative">
+                <canvas id="chart-attrition-types"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Internal Mobility Alerts -->
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <div class="border-b border-slate-800/80 pb-4">
+            <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+              <i class="fa-solid fa-route text-amber-400"></i> Cảnh báo Tắc nghẽn Thăng tiến (Internal Mobility Risk)
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Phát hiện các phòng ban có rủi ro nghẽn lộ trình phát triển gây nản lòng cho nhân sự mới.</p>
+          </div>
+          
+          <div id="mobility-risk-alerts" class="space-y-3">
+            <!-- Dynamic alerts go here -->
+          </div>
+        </div>
+
+        <!-- Section 3: Skills Gap Matrix -->
+        <div class="glass-card p-6 rounded-2xl space-y-6">
+          <div class="border-b border-slate-800/80 pb-4">
+            <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+              <i class="fa-solid fa-graduation-cap text-indigo-400"></i> Ma trận Khoảng cách Kỹ năng (Skills Gap Matrix)
+            </h3>
+            <p class="text-xs text-slate-400 mt-1">Đối chiếu năng lực hiện tại với mục tiêu Chuyển đổi số của công ty.</p>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <!-- Table: 3 cols -->
+            <div class="lg:col-span-3 overflow-x-auto">
+              <table class="min-w-full divide-y divide-slate-800">
+                <thead class="bg-slate-900/60">
+                  <tr>
+                    <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Phòng ban</th>
+                    <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Hiện tại / Mục tiêu AI</th>
+                    <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Khoảng cách AI (Gap)</th>
+                    <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Hiện tại / Mục tiêu Digital</th>
+                    <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Khoảng cách Digital (Gap)</th>
+                  </tr>
+                </thead>
+                <tbody id="skills-gap-table-body" class="divide-y divide-slate-800 bg-slate-950/20">
+                  <!-- Dynamic rows go here -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Gap Chart: 2 cols -->
+            <div class="lg:col-span-2 bg-slate-900/40 border border-slate-850 p-4 rounded-xl flex flex-col h-[320px]">
+              <span class="text-slate-300 text-xs font-bold uppercase tracking-wider block mb-2 text-center">So sánh Khoảng cách Kỹ năng</span>
+              <div class="flex-1 relative">
+                <canvas id="chart-skills-gap"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: MÔ PHỎNG & DỰ BÁO TƯƠNG LAI (SWP)   -->
+      <!-- ========================================== -->
+      <div id="tab-simulator" class="tab-content hidden space-y-6">
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <!-- Left: Simulation Controls -->
+          <div class="glass-card p-6 rounded-2xl space-y-6 h-fit">
+            <h3 class="text-base font-bold text-white font-title border-b border-slate-800/80 pb-3 flex items-center gap-2">
+              <i class="fa-solid fa-gamepad text-indigo-400"></i> Trình mô phỏng Kịch bản SWP
+            </h3>
+
+            <!-- 1. Revenue Scenario Selection -->
+            <div class="space-y-2">
+              <label class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Kịch bản phát triển doanh thu</label>
+              <div class="grid grid-cols-3 gap-2">
+                <button data-scenario="optimistic" class="scenario-btn py-2 px-1 text-center text-xs font-bold border border-slate-800 rounded-lg text-slate-300 hover:bg-slate-900 transition-all">
+                  Lạc quan (+30%)
+                </button>
+                <button data-scenario="base" class="scenario-btn active py-2 px-1 text-center text-xs font-bold border border-indigo-500 bg-indigo-600 text-white rounded-lg transition-all shadow-md shadow-indigo-500/20">
+                  Cơ sở (+10%)
+                </button>
+                <button data-scenario="pessimistic" class="scenario-btn py-2 px-1 text-center text-xs font-bold border border-slate-800 rounded-lg text-slate-300 hover:bg-slate-900 transition-all">
+                  Suy thoái (-10%)
+                </button>
+              </div>
+            </div>
+
+            <!-- 2. AI Slider -->
+            <div class="space-y-3 pt-2">
+              <div class="flex justify-between items-center">
+                <label class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Mức độ áp dụng AI & Tự động hóa</label>
+                <span id="ai-slider-value" class="text-xs font-extrabold text-indigo-400 text-glow-indigo">10%</span>
+              </div>
+              <input type="range" id="ai-slider" min="0" max="50" step="5" value="10" class="w-full">
+              <p class="text-[10px] text-slate-400 leading-normal">
+                💡 Khấu trừ tương ứng % nhu cầu nhân viên nhóm kỹ năng thủ công (Traditional Skills), đồng thời gia tăng 5% nhu cầu nhóm nhân viên AI/Data cho mỗi mốc.
+              </p>
+            </div>
+
+            <!-- 3. Simulator KPIs -->
+            <div class="border-t border-slate-800/80 pt-4 space-y-4">
+              <div>
+                <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Cung hiện tại / Cầu tương lai</span>
+                <div class="flex items-baseline gap-2 mt-1">
+                  <span id="sim-current-headcount" class="text-xl font-bold text-slate-400">0</span>
+                  <span class="text-slate-500">➔</span>
+                  <span id="sim-future-demand" class="text-2xl font-black text-white">0</span>
+                </div>
+              </div>
+
+              <div>
+                <span class="text-slate-400 text-xxs font-bold uppercase tracking-wider block">Khoảng cách chênh lệch (GAP)</span>
+                <span id="sim-gap-value" class="text-3xl font-extrabold block mt-1">0</span>
+                <div id="sim-gap-status"></div>
+              </div>
+
+              <!-- Reallocated upskill budget -->
+              <div class="bg-indigo-950/40 border border-indigo-900/60 p-4 rounded-xl">
+                <div class="flex justify-between items-center mb-1">
+                  <span class="text-indigo-300 text-xxs font-bold uppercase tracking-wider">Quỹ Đào tạo lại (Upskill/Reskill)</span>
+                  <i class="fa-solid fa-sack-dollar text-emerald-400"></i>
+                </div>
+                <span id="sim-upskill-budget" class="text-2xl font-black text-emerald-400 text-glow-emerald">$0</span>
+                <p class="text-[10px] text-indigo-200 mt-1">Ngân sách lương dôi dư được dịch chuyển từ nhóm kỹ năng thủ công bị cắt giảm sang quỹ đào tạo nâng cao.</p>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Right: Forecasting Table & Charts -->
+          <div class="lg:col-span-2 space-y-6">
+            
+            <!-- Table results -->
+            <div class="glass-card p-6 rounded-2xl space-y-4">
+              <div>
+                <h4 class="font-bold text-white font-title text-base flex items-center justify-between">
+                  <span>Dự báo nhu cầu Headcount theo phòng ban</span>
+                  <span id="sim-current-scenario" class="text-xxs px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 uppercase tracking-widest font-black">BASE</span>
+                </h4>
+                <p id="sim-scenario-desc" class="text-xxs text-slate-400 mt-1"></p>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-800">
+                  <thead class="bg-slate-900/60">
+                    <tr>
+                      <th class="px-4 py-2.5 text-left text-xxs font-bold text-slate-400 uppercase">Phòng ban</th>
+                      <th class="px-4 py-2.5 text-center text-xxs font-bold text-slate-400 uppercase">Hiện tại</th>
+                      <th class="px-4 py-2.5 text-center text-xxs font-bold text-slate-400 uppercase">Dự báo</th>
+                      <th class="px-4 py-2.5 text-center text-xxs font-bold text-slate-400 uppercase">Lệch (Gap)</th>
+                      <th class="px-4 py-2.5 text-left text-xxs font-bold text-slate-400 uppercase">Phân bổ kỹ năng</th>
+                      <th class="px-4 py-2.5 text-right text-xxs font-bold text-slate-400 uppercase">Ngân sách dịch chuyển</th>
+                    </tr>
+                  </thead>
+                  <tbody id="sim-table-body" class="divide-y divide-slate-800 bg-slate-950/20">
+                    <!-- Dynamic rows go here -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Forecast comparison chart -->
+            <div class="glass-card p-6 rounded-2xl flex flex-col h-[300px]">
+              <span class="text-slate-300 text-xs font-bold uppercase tracking-wider block mb-2">Thay đổi cấu trúc kỹ năng nguồn nhân lực</span>
+              <div class="flex-1 relative">
+                <canvas id="chart-workforce-forecast"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        <!-- Section 3: Succession Planning & Aging alerts -->
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          <div class="border-b border-slate-800/80 pb-4 flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-bold text-white font-title flex items-center gap-2">
+                <i class="fa-solid fa-users-viewfinder text-amber-500"></i> Dự báo rủi ro kế nhiệm (Succession & Aging Alert)
+              </h3>
+              <p class="text-xs text-slate-400 mt-1">Phát hiện nguy cơ thiếu hụt nhân sự kế nhiệm tại các phòng ban có tỷ lệ lão hóa cốt lõi cao.</p>
+            </div>
+            <span class="text-xxs px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 font-bold">Predictive Engine</span>
+          </div>
+
+          <div id="succession-risk-alerts" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Dynamic alerts card go here -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: DATABASE EXPLORER                   -->
+      <!-- ========================================== -->
+      <div id="tab-explorer" class="tab-content hidden space-y-4">
+        <div class="glass-card p-6 rounded-2xl space-y-4">
+          
+          <!-- Explorer header + filters -->
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
+            <div>
+              <h3 class="text-base font-bold text-white font-title">Employee Database Explorer</h3>
+              <p class="text-xxs text-slate-400">Xem trực tiếp danh sách nhân viên trong hệ thống để đối chiếu tính toán</p>
+            </div>
+            
+            <div class="flex flex-wrap items-center gap-3">
+              <!-- Search ID -->
+              <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-500 text-xs"></i>
+                <input type="text" id="explorer-search-id" placeholder="Tìm Mã NV (Ví dụ: EMP-0001)..." class="pl-8 pr-4 py-1.5 rounded-lg text-xs w-56 font-medium">
+              </div>
+
+              <!-- Checkbox active only -->
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                <input type="checkbox" id="explorer-active-only" checked class="rounded border-slate-800 text-indigo-600 focus:ring-indigo-500/30">
+                <span>Chỉ xem nhân viên Active</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Table Container -->
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-800">
+              <thead class="bg-slate-900/60">
+                <tr>
+                  <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Mã NV</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Phòng ban</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold text-slate-400 uppercase tracking-wider">Tuổi</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold text-slate-400 uppercase tracking-wider">Thâm niên (Tháng)</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold text-slate-400 uppercase tracking-wider">Trạng thái</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold text-slate-400 uppercase tracking-wider">Hiệu suất</th>
+                  <th class="px-6 py-3 text-left text-xxs font-bold text-slate-400 uppercase tracking-wider">Nhóm kỹ năng</th>
+                  <th class="px-6 py-3 text-center text-xxs font-bold text-slate-400 uppercase tracking-wider">Thăng chức 12M</th>
+                  <th class="px-6 py-3 text-right text-xxs font-bold text-slate-400 uppercase tracking-wider">Doanh thu phòng</th>
+                </tr>
+              </thead>
+              <tbody id="explorer-table-body" class="divide-y divide-slate-800 bg-slate-950/20">
+                <!-- Dynamic employee database goes here -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination controls -->
+          <div class="flex items-center justify-between border-t border-slate-800/80 pt-4">
+            <span id="explorer-page-info" class="text-xs text-slate-400 font-medium">Trang 1 / 10</span>
+            <div class="flex gap-2">
+              <button id="explorer-btn-prev" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <i class="fa-solid fa-angle-left mr-1"></i>Trước
+              </button>
+              <button id="explorer-btn-next" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 rounded-lg text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                Sau<i class="fa-solid fa-angle-right ml-1"></i>
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- Connect Scripts -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
